@@ -53,14 +53,10 @@ def create_table(engine):
     Base.metadata.create_all(engine)
 
 def fill_in_the_data(session, filename='tests_data.json'):
-    with open(filename) as fh:
+    with open(filename, encoding='utf-8') as fh:
         info = json.loads(fh.read())
-        values = []
         models = {"publisher": Publisher, "book": Book, "shop": Shop, "stock": Stock, "sale": Sale}
         for col in info:
             model = models[col.get('model')]
             session.add(model(id=col.get('pk'), **col.get('fields')))
     session.commit()
-
-
-

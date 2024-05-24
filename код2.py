@@ -2,14 +2,10 @@ import sqlalchemy as sq
 from sqlalchemy.orm import sessionmaker
 import models
 
-def main():
-    DBMS = 'postgresql'
-    user = 'postgres'
-    password = 'izvara32'
-    host = 'localhost:5432'
-    db_name = 'salebook_db'
-    DSN = f'{DBMS}://{user}:{password}@{host}/{db_name}'
-    engine = sq.create_engine(DSN)
+
+def creating_a_connection(dbms, user, password, host, db_name):
+    dsn = f'{dbms}://{user}:{password}@{host}/{db_name}'
+    engine = sq.create_engine(dsn)
 
     models.create_table(engine)
 
@@ -18,22 +14,33 @@ def main():
 
     models.create_table(engine)
     models.fill_in_the_data(session)
+    return session
 
-    pk = input("Введите имя или индентификатор издателя: ")
 
-    subq = (session.query(models.Sale, models.Shop, models.Book).join(models.Stock.sale)
-            .join(models.Book, models.Stock.id_book == models.Book.id)
-            .join(models.Publisher, models.Publisher.id == models.Book.id_publisher)
-            .join(models.Shop, models.Shop.id == models.Stock.id_shop).filter(models.Publisher.name==pk))
+def get_shops(db_session, key):
 
-    for s in subq.all():
-        line = '%-45s | %-20s | %-7.2f | %-10s' % (s.Book.title, s.Shop.name, s.Sale.price, str(s.Sale.date_sale))
+    subq = db_session.query(models.Book.title, models.Shop.name, models.Sale.price, models.Sale.date_sale).\
+            select_from(models.Sale).\
+            join(models.Stock, models.Sale.id_stock == models.Stock.id).\
+            join(models.Book, models.Stock.id_book == models.Book.id).\
+            join(models.Publisher, models.Publisher.id == models.Book.id_publisher).\
+            join(models.Shop, models.Shop.id == models.Stock.id_shop)
+    if key.isdigit():
+        subq = subq.filter(models.Publisher.id==key).all()
+    else:
+        subq = subq.filter(models.Publisher.name==key).all()
+    for title, shop, price, date_sale in subq:
+        line = '%-45s | %-20s | %-7.2f | %-10s' % (title, shop, price, str(date_sale))
         print(line)
 
-    session.close()
+    db_session.close()
 
 if __name__ == '__main__':
-    main()
-
-
-
+    DBMS = 'postgresql'
+    USER = 'postgres'
+    PASSWORD = 'izvara32'
+    HOST = 'localhost:5432'
+    DB_NAME = 'salebook_db'
+    session = creating_a_connection(DBMS, USER, PASSWORD, HOST, DB_NAME)
+    key_user = input("Введите имя или индентификатор издателя: ")
+    get_shops(session, key_user)
